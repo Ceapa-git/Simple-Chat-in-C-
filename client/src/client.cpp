@@ -4,10 +4,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cstring>
 
 namespace sc{
-    Client::Client(std::unique_ptr<char> address, uint16_t port){
-        this->address = std::make_unique<char>(address);
+    Client::Client(char* address, uint16_t port){
+        this->address = std::make_unique<char[]>(strlen(address) + 1);
+        strcpy(this->address.get(), address);
         this->port = port;
         this->isConnected = false;
     }
@@ -47,10 +49,15 @@ namespace sc{
     uint16_t Client::getPort(){
         return this->port;
     }
-    void Client::setAddress(std::unique_ptr<char> address){
-        if(!this->isConnected) this->address = std::make_unique<char>(address);
+    void Client::setAddress(char* address){
+        if(!this->isConnected){
+            this->address = std::make_unique<char[]>(strlen(address) + 1);
+            strcpy(this->address.get(), address);
+        }
     }
-    std::unique_ptr<char> Client::getAddress(){
-        return std::make_unique<char>(this->address);
+    std::unique_ptr<char[]> Client::getAddress(){
+        std::unique_ptr<char[]> ret = std::make_unique<char[]>(strlen(this->address.get()) + 1);
+        strcpy(ret.get(), this->address.get());
+        return ret;
     }
 }
