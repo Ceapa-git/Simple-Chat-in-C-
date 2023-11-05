@@ -5,13 +5,13 @@
 namespace sc{
     class Client{
     public:
-        Client(char* address, uint16_t port);
+        Client(const char* address, uint16_t port);
         int tryConnect();
         int tryDisconnect();
 
         void setPort(uint16_t port);
         uint16_t getPort();
-        void setAddress(char* address);
+        void setAddress(const char* address);
         std::unique_ptr<char[]> getAddress();
     private:
         uint16_t port;

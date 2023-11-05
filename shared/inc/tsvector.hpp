@@ -6,11 +6,11 @@ namespace sc{
     template <typename T>
     class TSVector{
     public:
-        TSVector(int size = 10): v(size, {element{}, ElementState::Empty}){}
+        TSVector(){}
 
         void insert(const T& value);
-        void remove(int index);
-        T operator[](int index);
+        void remove(long unsigned int index);
+        T operator[](long unsigned int index);
     private:
         enum class ElementState {Empty, Occupied};
         struct element{

@@ -7,7 +7,7 @@
 #include <cstring>
 
 namespace sc{
-    Client::Client(char* address, uint16_t port){
+    Client::Client(const char* address, uint16_t port){
         this->address = std::make_unique<char[]>(strlen(address) + 1);
         strcpy(this->address.get(), address);
         this->port = port;
@@ -49,7 +49,7 @@ namespace sc{
     uint16_t Client::getPort(){
         return this->port;
     }
-    void Client::setAddress(char* address){
+    void Client::setAddress(const char* address){
         if(!this->isConnected){
             this->address = std::make_unique<char[]>(strlen(address) + 1);
             strcpy(this->address.get(), address);

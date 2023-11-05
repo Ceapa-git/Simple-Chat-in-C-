@@ -1,4 +1,7 @@
 #include "tsvector.hpp"
+#include "server.hpp"
+
+template class sc::TSVector<sc::Server::client>;
 
 namespace sc{
     template <typename T>
@@ -15,17 +18,17 @@ namespace sc{
     }
 
     template <typename T>
-    void TSVector<T>::remove(int index){
+    void TSVector<T>::remove(long unsigned int index){
         std::lock_guard<std::mutex> lock(this->m);
-        if (index < 0 || index >= this->v.size()) return;
+        if (index >= this->v.size()) throw std::out_of_range("Index out of range");
         this->v[index].state = ElementState::Empty;
     }
 
     template <typename T>
-    T TSVector<T>::operator[](int index){
+    T TSVector<T>::operator[](long unsigned int index){
         std::lock_guard<std::mutex> lock(this->m);
-        if (index < 0 || index >= this->v.size()) return nullptr;
-        if (this->v[index].state == ElementState::Empty) return nullptr;
+        if (index >= this->v.size()) throw std::out_of_range("Index out of range");
+        if (this->v[index].state == ElementState::Empty) throw std::out_of_range("Element is empty");
         return this->v[index].value;
     }
 }

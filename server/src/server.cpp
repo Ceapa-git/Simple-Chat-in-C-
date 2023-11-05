@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include "tsvector.hpp"
 #include <cstdio>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -10,9 +11,11 @@ namespace sc{
         this->port = port;
         this->maxConnections = maxConnecitons;
         this->isRunning = false;
+        this->isListening = false;
     }
     int Server::tryStart(){
         if (this->isRunning) return -2;
+        if (this->isListening) return -3;
 
         if ((this->socketFD = socket(AF_INET, SOCK_STREAM, 0)) == -1){
             perror("socket");
@@ -40,11 +43,20 @@ namespace sc{
             return -1;
         }
 
+        this->isListening = true;
+        this->isRunning = true;
+
+        this->listenThread = std::thread(&Server::listenLoop, this);
+        this->listenThread.detach();
+
         return 0;
     }
     int Server::tryStop(){
         if (!this->isRunning) return -1;
+        this->isListening = false;
+        this->isRunning = false;
         close(this->socketFD);
+        //this->listenThread.join();
         return 0;
     }
 
@@ -59,5 +71,23 @@ namespace sc{
     }
     int Server::getMaxConnections(){
         return this->maxConnections;
+    }
+
+    void Server::listenLoop(){
+        while(this->isRunning){
+            while(this->isListening){
+                struct sockaddr_in clientAddress;
+                socklen_t clientAddressLen = sizeof(clientAddress);
+                int clientFD = accept(this->socketFD, (struct sockaddr*)&clientAddress, &clientAddressLen);
+                if (clientFD == -1){
+                    perror("accept");
+                }
+                else{
+                    this->clients.insert({clientFD, clientAddress, clientAddressLen});
+                    //todo callback
+                }
+            }
+        }
+        printf("leave loop\n");
     }
 }
