@@ -1,10 +1,4 @@
 #include "server.hpp"
-#include "tsvector.hpp"
-#include <cstdio>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
 
 namespace sc{
     Server::Server(uint16_t port, int maxConnecitons){
@@ -17,7 +11,7 @@ namespace sc{
         if (this->isRunning) return -2;
         if (this->isListening) return -3;
 
-        if ((this->socketFD = socket(AF_INET, SOCK_STREAM, 0)) == -1){
+        if ((this->socketFD = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0)) == -1){
             perror("socket");
             return -1;
         }
@@ -47,16 +41,22 @@ namespace sc{
         this->isRunning = true;
 
         this->listenThread = std::thread(&Server::listenLoop, this);
-        this->listenThread.detach();
 
         return 0;
     }
     int Server::tryStop(){
         if (!this->isRunning) return -1;
+
+        std::unique_lock<std::mutex> isListeningLock(this->isListeningMutex);
         this->isListening = false;
+        isListeningLock.unlock();
+        std::unique_lock<std::mutex> isRunningLock(this->isRunningMutex);
         this->isRunning = false;
+        isRunningLock.unlock();
+
+        std::lock_guard<std::mutex> lock(this->threadRunning);
+        this->listenThread.join();
         close(this->socketFD);
-        //this->listenThread.join();
         return 0;
     }
 
@@ -74,21 +74,59 @@ namespace sc{
     }
 
     void Server::listenLoop(){
-        while(this->isRunning){
-            while(this->isListening){
+        std::lock_guard<std::mutex> lock(this->threadRunning);
+        std::unique_lock<std::mutex> isRunningLock(this->isRunningMutex);
+        std::unique_lock<std::mutex> isListeningLock(this->isListeningMutex);
+        isRunningLock.unlock();
+        isListeningLock.unlock();
+        while(true){
+            isRunningLock.lock();
+            if(!this->isRunning){
+                isRunningLock.unlock();
+                break;
+            }
+            isRunningLock.unlock();
+
+            while(true){
+                isListeningLock.lock();
+                if(!this->isListening){
+                    isListeningLock.unlock();
+                    break;
+                }
+
+                isListeningLock.unlock();
                 struct sockaddr_in clientAddress;
                 socklen_t clientAddressLen = sizeof(clientAddress);
                 int clientFD = accept(this->socketFD, (struct sockaddr*)&clientAddress, &clientAddressLen);
                 if (clientFD == -1){
-                    perror("accept");
+                    if (errno != EAGAIN || errno != EWOULDBLOCK){
+                        perror("accept");
+                    }
                 }
                 else{
-                    printf("connect: %d\n", clientAddress.sin_port);
+                    struct sockaddr_in* pV4Addr = (struct sockaddr_in*)&clientAddress;
+                    struct in_addr ipAddr = pV4Addr->sin_addr;
+                    char str[INET_ADDRSTRLEN];
+                    inet_ntop( AF_INET, &ipAddr, str, INET_ADDRSTRLEN);
+
+                    Message msg(Message::MessageType::Send);
+                    char cmsg[100] = {0};
+                    sprintf(cmsg, "%s connected", str);
+                    std::unique_ptr<char[]> body = std::make_unique<char[]>(strlen(cmsg));
+                    strncpy(body.get(), cmsg, strlen(cmsg));
+                    msg.set(strlen(cmsg), body);
+
+                    printf("%s\n", cmsg);
+                    
+                    for(long unsigned int i = 0; i < this->clients.size(); i++){
+                        if(this->clients.notEmpty(i)){
+                            msg.sendMessage(this->clients[i].fd);
+                        }
+                    }
                     this->clients.insert({clientFD, clientAddress, clientAddressLen});
                     //todo callback
                 }
             }
         }
-        printf("leave loop\n");
     }
 }

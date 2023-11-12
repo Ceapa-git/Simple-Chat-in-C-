@@ -1,8 +1,14 @@
 #pragma once
+#include "tsvector.hpp"
+#include "message.hpp"
 #include <cstdint>
+#include <cstdio>
+#include <memory>
 #include <thread>
 #include <netinet/in.h>
-#include "tsvector.hpp"
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
 namespace sc{
     class Server{
@@ -10,8 +16,10 @@ namespace sc{
         Server(uint16_t port, int maxConnections);
         int tryStart();
         int tryStop();
+        /*TODO
         int tryStartListening();
         int tryStopListening();
+        */
 
         void setPort(uint16_t port);
         uint16_t getPort();
@@ -33,5 +41,8 @@ namespace sc{
         bool isListening;
         sc::TSVector<client> clients;
         std::thread listenThread;
+        std::mutex threadRunning;
+        std::mutex isListeningMutex;
+        std::mutex isRunningMutex;
     };
 }

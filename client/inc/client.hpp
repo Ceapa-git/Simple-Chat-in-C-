@@ -1,6 +1,12 @@
 #pragma once
 #include <cstdint>
 #include <memory>
+#include <cstdio>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <cstring>
 
 namespace sc{
     class Client{
@@ -13,6 +19,8 @@ namespace sc{
         uint16_t getPort();
         void setAddress(const char* address);
         std::unique_ptr<char[]> getAddress();
+
+        int getFD() {return this->socketFD;};
     private:
         uint16_t port;
         std::unique_ptr<char[]> address;

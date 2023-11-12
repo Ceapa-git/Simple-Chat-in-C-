@@ -31,4 +31,11 @@ namespace sc{
         if (this->v[index].state == ElementState::Empty) throw std::out_of_range("Element is empty");
         return this->v[index].value;
     }
+
+    template <typename T>
+    bool TSVector<T>::notEmpty(long unsigned int index){
+        if (index >= this->v.size()) throw std::out_of_range("Index out of range");
+        if (this->v[index].state == ElementState::Empty) return false;
+        return true;
+    }
 }

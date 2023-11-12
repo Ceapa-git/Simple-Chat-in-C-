@@ -1,10 +1,4 @@
 #include "client.hpp"
-#include <cstdio>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <cstring>
 
 namespace sc{
     Client::Client(const char* address, uint16_t port){
