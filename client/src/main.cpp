@@ -8,7 +8,7 @@ int main(int argc,const char* argv[]){
     }
     printf("\n");
 
-    char adr[] = "localhost";
+    char adr[] = "127.0.0.1";
     sc::Client client(adr, 6969);
     client.tryConnect();
 

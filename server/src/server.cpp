@@ -83,6 +83,7 @@ namespace sc{
                     perror("accept");
                 }
                 else{
+                    printf("connect: %d\n", clientAddress.sin_port);
                     this->clients.insert({clientFD, clientAddress, clientAddressLen});
                     //todo callback
                 }
