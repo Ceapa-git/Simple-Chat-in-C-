@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <cstring>
+#include <sstream>
+#include "message.hpp"
 
 namespace sc{
     class Client{
@@ -26,5 +28,6 @@ namespace sc{
         std::unique_ptr<char[]> address;
         int socketFD;
         bool isConnected;
+        int id;
     };
 }

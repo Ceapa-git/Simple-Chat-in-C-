@@ -6,6 +6,7 @@ namespace sc{
         strcpy(this->address.get(), address);
         this->port = port;
         this->isConnected = false;
+        this->id = -1;
     }
     int Client::tryConnect(){
         if (this->isConnected) return -2;
@@ -29,10 +30,29 @@ namespace sc{
             return -1;
         }
 
+        Message msg(Message::MessageType::Get);
+        unsigned long int len;
+        std::unique_ptr<char[]> body;
+        msg.readMessage(this->socketFD);
+        msg.get(len, body);
+        std::istringstream ss(body.get());
+        ss >> this->id;
+
+        this->isConnected = true;
+
         return 0;
     }
     int Client::tryDisconnect(){
         if (!this->isConnected) return -1;
+        Message msg(Message::MessageType::Send);
+        
+        char cmsg[100] = {0};
+        sprintf(cmsg, "disconnect");
+        std::unique_ptr<char[]> body = std::make_unique<char[]>(strlen(cmsg));
+        strncpy(body.get(), cmsg, strlen(cmsg));
+        msg.set(strlen(cmsg), body);
+        msg.sendMessage(this->socketFD);
+
         close(this->socketFD);
         return 0;
     }

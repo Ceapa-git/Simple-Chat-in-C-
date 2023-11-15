@@ -10,10 +10,10 @@ namespace sc{
 
         void insert(const T& value);
         void remove(long unsigned int index);
-        T operator[](long unsigned int index);
 
         bool notEmpty(long unsigned int index);
-        long unsigned int size() {return v.size();}
+        bool getNotEmpty(long unsigned int index, T& value);
+        long unsigned int size();
     private:
         enum class ElementState {Empty, Occupied};
         struct element{

@@ -6,6 +6,7 @@ namespace sc{
         this->maxConnections = maxConnecitons;
         this->isRunning = false;
         this->isListening = false;
+        this->lastId = -1;
     }
     int Server::tryStart(){
         if (this->isRunning) return -2;
@@ -41,6 +42,7 @@ namespace sc{
         this->isRunning = true;
 
         this->listenThread = std::thread(&Server::listenLoop, this);
+        this->messageThread = std::thread(&Server::messageLoop, this);
 
         return 0;
     }
@@ -54,8 +56,10 @@ namespace sc{
         this->isRunning = false;
         isRunningLock.unlock();
 
-        std::lock_guard<std::mutex> lock(this->threadRunning);
+        std::lock_guard<std::mutex> lockListen(this->listenThreadRunning);
         this->listenThread.join();
+        std::lock_guard<std::mutex> lockMessage(this->messageThreadRunning);
+        this->messageThread.join();
         close(this->socketFD);
         return 0;
     }
@@ -74,7 +78,7 @@ namespace sc{
     }
 
     void Server::listenLoop(){
-        std::lock_guard<std::mutex> lock(this->threadRunning);
+        std::lock_guard<std::mutex> lock(this->listenThreadRunning);
         std::unique_lock<std::mutex> isRunningLock(this->isRunningMutex);
         std::unique_lock<std::mutex> isListeningLock(this->isListeningMutex);
         isRunningLock.unlock();
@@ -93,11 +97,11 @@ namespace sc{
                     isListeningLock.unlock();
                     break;
                 }
-
                 isListeningLock.unlock();
+
                 struct sockaddr_in clientAddress;
                 socklen_t clientAddressLen = sizeof(clientAddress);
-                int clientFD = accept(this->socketFD, (struct sockaddr*)&clientAddress, &clientAddressLen);
+                int clientFD = accept4(this->socketFD, (struct sockaddr*)&clientAddress, &clientAddressLen, SOCK_NONBLOCK);
                 if (clientFD == -1){
                     if (errno != EAGAIN || errno != EWOULDBLOCK){
                         perror("accept");
@@ -107,24 +111,63 @@ namespace sc{
                     struct sockaddr_in* pV4Addr = (struct sockaddr_in*)&clientAddress;
                     struct in_addr ipAddr = pV4Addr->sin_addr;
                     char str[INET_ADDRSTRLEN];
-                    inet_ntop( AF_INET, &ipAddr, str, INET_ADDRSTRLEN);
+                    inet_ntop(AF_INET, &ipAddr, str, INET_ADDRSTRLEN);
 
-                    Message msg(Message::MessageType::Send);
+                    Message msg(Message::MessageType::Send);//TODO extract method in message
                     char cmsg[100] = {0};
                     sprintf(cmsg, "%s connected", str);
                     std::unique_ptr<char[]> body = std::make_unique<char[]>(strlen(cmsg));
                     strncpy(body.get(), cmsg, strlen(cmsg));
                     msg.set(strlen(cmsg), body);
 
-                    printf("%s\n", cmsg);
+                    printf("%02d: %s\n", (++this->lastId), cmsg);
+
+                    Message msgId(Message::MessageType::Send);
+                    char cmsgId[100] = {0};
+                    sprintf(cmsgId, "%d", this->lastId);
+                    std::unique_ptr<char[]> bodyId = std::make_unique<char[]>(strlen(cmsg));
+                    strncpy(bodyId.get(), cmsgId, strlen(cmsgId));
+                    msgId.set(strlen(cmsgId), bodyId);
+                    msgId.sendMessage(clientFD);
                     
                     for(long unsigned int i = 0; i < this->clients.size(); i++){
-                        if(this->clients.notEmpty(i)){
-                            msg.sendMessage(this->clients[i].fd);
+                        client c;
+                        if(this->clients.getNotEmpty(i, c)){
+                            msg.sendMessage(c.fd);
                         }
                     }
-                    this->clients.insert({clientFD, clientAddress, clientAddressLen});
+                    this->clients.insert({clientFD, clientAddress, clientAddressLen, this->lastId});
                     //todo callback
+                }
+            }
+        }
+    }
+    void Server::messageLoop(){
+        std::lock_guard<std::mutex> lock(this->messageThreadRunning);
+        std::unique_lock<std::mutex> isRunningLock(this->isRunningMutex);
+        isRunningLock.unlock();
+        while(true){
+            isRunningLock.lock();
+            if(!this->isRunning){
+                isRunningLock.unlock();
+                break;
+            }
+            isRunningLock.unlock();
+
+            for(long unsigned int i = 0; i < this->clients.size(); i++){
+                Message msg(Message::MessageType::Get);
+                int res;
+                client c;
+                if(this->clients.getNotEmpty(i, c)){
+                    if((res = msg.readMessage(c.fd)) == 0){
+                        std::unique_ptr<char[]> body;
+                        long unsigned int size;
+                        msg.get(size, body);
+                        if(strstr(body.get(), "disconnect") == body.get()){
+                            printf("%02d disconnected\n", c.id);
+                            this->clients.remove(i);
+                        }
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 #pragma once
 #include "tsvector.hpp"
+#include "tsqueue.hpp"
 #include "message.hpp"
 #include <cstdint>
 #include <cstdio>
@@ -27,22 +28,31 @@ namespace sc{
         int getMaxConnections();
     private:
         void listenLoop();
+        void messageLoop();
     public:
         typedef struct{
             int fd;
             struct sockaddr_in address;
             socklen_t addressLen;
+            int id;
         } client;
     private:
+        sc::TSVector<client> clients;
         uint16_t port;
         int socketFD;
         int maxConnections;
+        int lastId;
+
         bool isRunning;
         bool isListening;
-        sc::TSVector<client> clients;
-        std::thread listenThread;
-        std::mutex threadRunning;
-        std::mutex isListeningMutex;
         std::mutex isRunningMutex;
+        std::mutex isListeningMutex;
+
+        std::thread listenThread;
+        std::mutex listenThreadRunning;
+
+        sc::TSQueue<sc::Message> messageQueue;
+        std::thread messageThread;
+        std::mutex messageThreadRunning;
     };
 }

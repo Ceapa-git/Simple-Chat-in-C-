@@ -25,17 +25,25 @@ namespace sc{
     }
 
     template <typename T>
-    T TSVector<T>::operator[](long unsigned int index){
-        std::lock_guard<std::mutex> lock(this->m);
-        if (index >= this->v.size()) throw std::out_of_range("Index out of range");
-        if (this->v[index].state == ElementState::Empty) throw std::out_of_range("Element is empty");
-        return this->v[index].value;
-    }
-
-    template <typename T>
     bool TSVector<T>::notEmpty(long unsigned int index){
+        std::lock_guard<std::mutex> lock(this->m);
         if (index >= this->v.size()) throw std::out_of_range("Index out of range");
         if (this->v[index].state == ElementState::Empty) return false;
         return true;
+    }
+
+    template <typename T>
+    bool TSVector<T>::getNotEmpty(long unsigned int index, T& value){
+        std::lock_guard<std::mutex> lock(this->m);
+        if (index >= this->v.size()) throw std::out_of_range("Index out of range");
+        if (this->v[index].state == ElementState::Empty) return false;
+        value = this->v[index].value;
+        return true;
+    }
+
+    template <typename T>
+    long unsigned int TSVector<T>::size(){
+        std::lock_guard<std::mutex> lock(this->m);
+        return this->v.size();
     }
 }

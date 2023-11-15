@@ -14,17 +14,15 @@ int main(int argc,const char* argv[]){
     sc::Client client(adr, 6969);
     client.tryConnect();
 
-    while(true){
-        sc::Message msg(sc::Message::MessageType::Get);
-        msg.readMessage(client.getFD());
-        long unsigned int size;
-        std::unique_ptr<char[]> cmsg;
-        int getVal = msg.get(size, cmsg);
-        if(getVal == 0)
-            printf("%.*s\n", (int)size, cmsg.get());
-        else
-            printf("%d\r", getVal);
-    }
+    sc::Message msg(sc::Message::MessageType::Get);
+    msg.readMessage(client.getFD());
+    long unsigned int size;
+    std::unique_ptr<char[]> cmsg;
+    int getVal = msg.get(size, cmsg);
+    if(getVal == 0)
+        printf("%.*s\n", (int)size, cmsg.get());
+    else
+        printf("%d\n", getVal);
 
     client.tryDisconnect();
     return 0;
